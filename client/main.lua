@@ -14,8 +14,8 @@ end
 
 RegisterNUICallback('close',function(_,cb) closeUI(); cb({ok=true}) end)
 RegisterNUICallback('register',function(data,cb) TriggerServerEvent('st_dmv:server:registerVehicle',data.id,data.account,data.useCustom==true); cb({ok=true}) end)
-RegisterNUICallback('customRequest',function(data,cb) TriggerServerEvent('st_dmv:server:requestCustomPlate',data.id,data.plate); cb({ok=true}) end)
-RegisterNUICallback('purchaseCustom',function(data,cb) TriggerServerEvent('st_dmv:server:purchaseApprovedCustom',data.id,data.account); cb({ok=true}) end)
+RegisterNUICallback('customRequest',function(data,cb) TriggerServerEvent('st_dmv:server:requestRegisteredCustomPlate',data.id,data.plate); cb({ok=true}) end)
+RegisterNUICallback('purchaseCustom',function(data,cb) TriggerServerEvent('st_dmv:server:purchaseRegisteredCustomPlate',data.id,data.account); cb({ok=true}) end)
 RegisterNUICallback('exam',function(data,cb) TriggerServerEvent('st_dmv:server:submitExam',data.licenseType,data.answers); cb({ok=true}) end)
 RegisterNUICallback('refresh',function(_,cb) TriggerServerEvent('st_dmv:server:requestDashboard'); cb({ok=true}) end)
 RegisterNUICallback('adminRefresh',function(_,cb) TriggerServerEvent('st_dmv:server:getAdminPanel'); cb({ok=true}) end)
