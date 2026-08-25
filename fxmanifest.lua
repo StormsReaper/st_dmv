@@ -37,7 +37,3 @@ files {
 dependencies {
     'oxmysql'
 }
-
-exports {
-    'RegisterNewVehicleSale'
-}
