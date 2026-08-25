@@ -25,6 +25,7 @@ server_scripts {
     'server/framework.lua',
     'server/inventory.lua',
     'server/main.lua',
+    'server/custom_plates.lua',
     'server/mdt_api.lua'
 }
 
