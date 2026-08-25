@@ -54,7 +54,7 @@ end
 
 function Framework.AddItem(source,item,metadata)
     if Config.Inventory=='ox_inventory' or (Config.Inventory=='auto' and GetResourceState('ox_inventory')=='started') then
-        return exports.ox_inventory:AddItem(source,item,1,nil,metadata)
+        return exports.ox_inventory:AddItem(source,item,1,metadata)
     end
     if GetResourceState('qb-inventory')=='started' then
         return exports['qb-inventory']:AddItem(source,item,1,nil,metadata,'st_dmvsystem')
