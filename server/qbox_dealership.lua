@@ -1,57 +1,22 @@
 -- QBox / qbx_vehicleshop integration.
--- Uses the qbx_vehicles createPlayerVehicle hook, but only consumes creations
--- explicitly announced by qbx_vehicleshop purchase events. This prevents garages,
--- imports, scripts and admin vehicle creation from becoming DMV dealership sales.
+-- qbx_vehicles exposes the authoritative createPlayerVehicle hook used by
+-- qbx_vehicleshop. The hook fires for every new owned QBox vehicle, so the DMV
+-- ledger is populated automatically without requiring edits to qbx_vehicleshop.
+-- Existing/imported vehicles are de-duplicated by the immutable QBox vehicle id.
 
 local registeredHook = false
 local hookId
-local expectedSales = {}
 
 local function resourceStarted(name)
     return GetResourceState(name) == 'started'
 end
 
-local function key(cid, model)
-    return ('%s:%s'):format(STDMV.Trim(cid), tostring(model or ''):lower())
+local function safeDecode(value)
+    if type(value) == 'table' then return value end
+    if type(value) ~= 'string' or value == '' then return {} end
+    local ok, decoded = pcall(json.decode, value)
+    return ok and decoded or {}
 end
-
-local function markExpected(src, citizenid, model)
-    if not citizenid or not model then return end
-    expectedSales[key(citizenid, model)] = {
-        source = src,
-        citizenid = STDMV.Trim(citizenid),
-        model = tostring(model):lower(),
-        expires = GetGameTimer() + 10000
-    }
-end
-
-local function isExpected(cid, model)
-    local k = key(cid, model)
-    local sale = expectedSales[k]
-    if not sale then return nil end
-    if sale.expires < GetGameTimer() then
-        expectedSales[k] = nil
-        return nil
-    end
-    return sale
-end
-
--- Standard QBox showroom purchase.
-AddEventHandler('qbx_vehicleshop:server:buyShowroomVehicle', function(model)
-    local src = source
-    local player = exports.qbx_core:GetPlayer(src)
-    if player then
-        markExpected(src, player.PlayerData.citizenid, model)
-    end
-end)
-
--- Managed/private dealership sale to a target player.
-AddEventHandler('qbx_vehicleshop:server:sellShowroomVehicle', function(model, playerId)
-    local target = exports.qbx_core:GetPlayer(tonumber(playerId))
-    if target then
-        markExpected(source, target.PlayerData.citizenid, model)
-    end
-end)
 
 local function registerQBoxDealershipHook()
     if registeredHook then return true end
@@ -59,16 +24,11 @@ local function registerQBoxDealershipHook()
     if not resourceStarted('qbx_core') or not resourceStarted('qbx_vehicles') or not resourceStarted('qbx_vehicleshop') then return false end
 
     local ok, result = pcall(function()
-        -- registerHook belongs to qbx_vehicles, not qbx_core.
+        -- This hook is exported by qbx_vehicles, not qbx_core.
         return exports.qbx_vehicles:registerHook('createPlayerVehicle', function(payload)
             if type(payload) ~= 'table' or not payload.citizenid or type(payload.props) ~= 'table' then return end
 
             local props = payload.props
-            local model = props.modelName or props.vehicle
-            local sale = isExpected(payload.citizenid, model)
-            if not sale then return end
-            expectedSales[key(payload.citizenid, model)] = nil
-
             local plate = STDMV.NormalizePlate(props.plate)
             if plate == '' then return end
 
@@ -84,17 +44,15 @@ local function registerQBoxDealershipHook()
                 end
 
                 if not found then
-                    print(('[st_dmvsystem] QBox vehicle was created but DMV could not find player_vehicles row for %s.'):format(plate))
+                    print(('[st_dmvsystem] QBox vehicle created but DMV could not find player_vehicles row for plate %s.'):format(plate))
                     return
                 end
 
-                local existing = MySQL.scalar.await('SELECT id FROM dmv_vehicle_ledger WHERE vin=? OR temporary_plate=? LIMIT 1', {
-                    ('QBX-' .. tostring(found.id)),
-                    found.plate
-                })
-                if existing then return end
+                -- The QBox vehicle id is the stable identity for the DMV ledger.
+                local vin = 'QBX-' .. tostring(found.id)
+                if MySQL.scalar.await('SELECT id FROM dmv_vehicle_ledger WHERE vin=? LIMIT 1', {vin}) then return end
 
-                local vehicleModel = found.vehicle or model or ''
+                local vehicleModel = found.vehicle or props.modelName or props.vehicle or ''
                 local displayName = vehicleModel
                 local make = ''
                 local okCatalog, catalog = pcall(function()
@@ -106,15 +64,8 @@ local function registerQBoxDealershipHook()
                     make = data.make or data.brand or ''
                 end
 
-                local vin = 'QBX-' .. tostring(found.id)
-                local salePrice = 0
-                local mods = found.mods
-                if type(mods) == 'string' and mods ~= '' then
-                    local okMods, decoded = pcall(json.decode, mods)
-                    if okMods and type(decoded) == 'table' then
-                        salePrice = tonumber(decoded.price) or 0
-                    end
-                end
+                local mods = safeDecode(found.mods)
+                local salePrice = tonumber(mods.price) or 0
 
                 MySQL.insert.await([[INSERT INTO dmv_vehicle_ledger
                     (vin,buyer_citizenid,model,make,vehicle_name,sale_price,temporary_plate,current_plate,state)
