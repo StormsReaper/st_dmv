@@ -24,6 +24,7 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/framework.lua',
     'server/inventory.lua',
+    'server/qbox_dealership.lua',
     'server/main.lua',
     'server/custom_plates.lua',
     'server/mdt_api.lua'
