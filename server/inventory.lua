@@ -1,3 +1,5 @@
+Inventory = Inventory or {}
+
 local function usingOx()
     return Config.Inventory == 'ox_inventory' or (Config.Inventory == 'auto' and GetResourceState('ox_inventory') == 'started')
 end
@@ -39,7 +41,7 @@ end
 
 function Inventory.RegisterUsables()
     if usingOx() then return end
-    if Framework.name == 'qbcore' or Framework.name == 'qbox' then
+    if Framework.name == 'qbcore' then
         local core = Framework.QBCore
         if core and core.Functions and core.Functions.CreateUseableItem then
             for _, item in ipairs({ 'dmv_driver_license', 'dmv_cdl_license', 'dmv_taxi_license', 'dmv_registration_doc' }) do
@@ -53,6 +55,5 @@ end
 
 CreateThread(function()
     Wait(1000)
-    Inventory = Inventory or {}
     Inventory.RegisterUsables()
 end)
