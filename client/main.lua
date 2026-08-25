@@ -20,6 +20,7 @@ RegisterNUICallback('exam',function(data,cb) TriggerServerEvent('st_dmv:server:s
 RegisterNUICallback('refresh',function(_,cb) TriggerServerEvent('st_dmv:server:requestDashboard'); cb({ok=true}) end)
 RegisterNUICallback('adminRefresh',function(_,cb) TriggerServerEvent('st_dmv:server:getAdminPanel'); cb({ok=true}) end)
 RegisterNUICallback('adminSetting',function(data,cb) TriggerServerEvent('st_dmv:server:adminSetting',data.key,data.value); cb({ok=true}) end)
+RegisterNUICallback('reviewCustomPlate',function(data,cb) TriggerServerEvent('st_dmv:server:reviewCustomPlate',data.id,data.approve==true,data.reason or ''); cb({ok=true}) end)
 RegisterNUICallback('createLocation',function(data,cb)
     local c=GetEntityCoords(PlayerPedId()); TriggerServerEvent('st_dmv:server:createLocation',data.label,{x=c.x,y=c.y,z=c.z}); cb({ok=true})
 end)
@@ -33,7 +34,7 @@ RegisterNUICallback('setMenuLocation',function(data,cb)
             local hit,coords=CameraRaycast(80.0)
             if hit then DrawMarker(2,coords.x,coords.y,coords.z+0.15,0,0,0,0,0,0,0.18,0.18,0.18,255,255,255,180,false,true,2,false,nil,nil,false) end
             if IsDisabledControlJustReleased(0,24) and hit then
-                raycastMode=false; TriggerServerEvent('st_dmv:server:updateLocation',id,{menu_x=coords.x,menu_y=coords.y,menu_z=coords.z,x=GetEntityCoords(PlayerPedId()).x,y=GetEntityCoords(PlayerPedId()).y,z=GetEntityCoords(PlayerPedId()).z}); SetNuiFocus(true,true); SendNUIMessage({action='raycastEnd',coords={x=coords.x,y=coords.y,z=coords.z}})
+                raycastMode=false; local pc=GetEntityCoords(PlayerPedId()); TriggerServerEvent('st_dmv:server:updateLocation',id,{menu_x=coords.x,menu_y=coords.y,menu_z=coords.z,x=pc.x,y=pc.y,z=pc.z}); SetNuiFocus(true,true); SendNUIMessage({action='raycastEnd',coords={x=coords.x,y=coords.y,z=coords.z}})
             elseif IsDisabledControlJustReleased(0,25) then
                 raycastMode=false; SetNuiFocus(true,true); SendNUIMessage({action='raycastEnd',cancelled=true})
             end
