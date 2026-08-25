@@ -12,7 +12,10 @@ Config.RegistrationCoverageDays = 365
 Config.PlatePrefix = 'OR'
 Config.PlateLength = 6
 Config.PlateFormat = 'OR-######' -- # = random alphanumeric character
-Config.TemporaryPlatePrefix = 'DMV'
+-- Temporary dealer plates are always TMP followed by 4 random alphanumeric characters.
+Config.TemporaryPlatePrefix = 'TMP'
+Config.TemporaryPlateLength = 4
+Config.TemporaryPlateFormat = 'TMP####'
 Config.CustomPlateEnabled = true
 Config.CustomPlatePrice = 750
 Config.CustomPlateMinLength = 2
