@@ -35,16 +35,30 @@ end)
 RegisterNUICallback('updateLocation',function(data,cb) TriggerServerEvent('st_dmv:server:updateLocation',data.id,data); cb({ok=true}) end)
 RegisterNUICallback('setMenuLocation',function(data,cb)
     local id=tonumber(data.id); if not id then cb({ok=false}); return end
-    raycastMode=true; SetNuiFocus(false,false); SendNUIMessage({action='raycastStart'})
+    raycastMode=true
+    SetNuiFocus(false,false)
+    SendNUIMessage({action='raycastStart'})
     CreateThread(function()
         while raycastMode do
-            Wait(0); DisableControlAction(0,24,true); DisableControlAction(0,25,true)
+            Wait(0)
+            DisableControlAction(0,24,true)
+            DisableControlAction(0,25,true)
+            DisableControlAction(0,38,true)
             local hit,coords=CameraRaycast(80.0)
-            if hit then DrawMarker(2,coords.x,coords.y,coords.z+0.15,0,0,0,0,0,0,0.18,0.18,0.18,255,255,255,180,false,true,2,false,nil,nil,false) end
-            if IsDisabledControlJustReleased(0,24) and hit then
-                raycastMode=false; local pc=GetEntityCoords(PlayerPedId()); TriggerServerEvent('st_dmv:server:updateLocation',id,{menu_x=coords.x,menu_y=coords.y,menu_z=coords.z,x=pc.x,y=pc.y,z=pc.z}); SetNuiFocus(true,true); SendNUIMessage({action='raycastEnd',coords={x=coords.x,y=coords.y,z=coords.z}})
-            elseif IsDisabledControlJustReleased(0,25) then
-                raycastMode=false; SetNuiFocus(true,true); SendNUIMessage({action='raycastEnd',cancelled=true})
+            if hit then
+                DrawMarker(2,coords.x,coords.y,coords.z+0.15,0,0,0,0,0,0,0.18,0.18,0.18,255,255,255,180,false,true,2,false,nil,nil,false)
+                BeginTextCommandDisplayHelp('STRING')
+                AddTextComponentSubstringPlayerName('Press ~INPUT_CONTEXT~ (~b~E~s~) to confirm DMV menu location  |  ~INPUT_FRONTEND_CANCEL~ to cancel')
+                EndTextCommandDisplayHelp(0,false,true,-1)
+            end
+            if IsControlJustReleased(0,38) and hit then
+                raycastMode=false
+                SendNUIMessage({action='raycastEnd',coords={x=coords.x,y=coords.y,z=coords.z}})
+                SetNuiFocus(true,true)
+            elseif IsControlJustReleased(0,177) or IsControlJustReleased(0,202) then
+                raycastMode=false
+                SetNuiFocus(true,true)
+                SendNUIMessage({action='raycastEnd',cancelled=true})
             end
         end
     end)
@@ -63,19 +77,58 @@ RegisterNetEvent('st_dmv:client:showDocument',function(item)
 end)
 exports('UseDocument',function(data) TriggerEvent('st_dmv:client:showDocument',data) end)
 
+local function playPlateInstallAnimation(vehicle)
+    local ped=PlayerPedId()
+    local dict='mini@repair'
+    local anim='fixing_a_player'
+    RequestAnimDict(dict)
+    local timeout=GetGameTimer()+5000
+    while not HasAnimDictLoaded(dict) and GetGameTimer()<timeout do Wait(50) end
+    if not HasAnimDictLoaded(dict) then return false end
+    FreezeEntityPosition(ped,true)
+    TaskTurnPedToFaceEntity(ped,vehicle,500)
+    Wait(500)
+    TaskPlayAnim(ped,dict,anim,8.0,-8.0,-1,1,0.0,false,false,false)
+    local finish=GetGameTimer()+4000
+    local cancelled=false
+    while GetGameTimer()<finish do
+        Wait(0)
+        DisableControlAction(0,23,true)
+        DisableControlAction(0,24,true)
+        DisableControlAction(0,25,true)
+        DisableControlAction(0,30,true)
+        DisableControlAction(0,31,true)
+        DisableControlAction(0,75,true)
+        BeginTextCommandDisplayHelp('STRING')
+        AddTextComponentSubstringPlayerName('Installing DMV license plate... ~INPUT_FRONTEND_CANCEL~ to cancel')
+        EndTextCommandDisplayHelp(0,false,true,-1)
+        if IsControlJustReleased(0,177) or IsControlJustReleased(0,202) then cancelled=true break end
+        if #(GetEntityCoords(ped)-GetEntityCoords(vehicle))>4.0 then cancelled=true break end
+        if IsEntityDead(ped) or IsPedInAnyVehicle(ped,false) then cancelled=true break end
+    end
+    ClearPedTasks(ped)
+    FreezeEntityPosition(ped,false)
+    RemoveAnimDict(dict)
+    return not cancelled
+end
+
 RegisterNetEvent('st_dmv:client:installPlate',function()
     local ped=PlayerPedId(); local coords=GetEntityCoords(ped); local vehicle=GetClosestVehicle(coords.x,coords.y,coords.z,4.0,0,71)
     if vehicle==0 or not DoesEntityExist(vehicle) then return ClientFramework.Notify('No vehicle nearby.','error') end
+    if IsPedInAnyVehicle(ped,false) then return ClientFramework.Notify('Exit the vehicle before installing a plate.','error') end
     local netId=NetworkGetNetworkIdFromEntity(vehicle)
     local usingOx=Config.Inventory=='ox_inventory' or (Config.Inventory=='auto' and GetResourceState('ox_inventory')=='started')
+    local metadata=nil
     if usingOx then
         local items=exports.ox_inventory:Search('slots','dmv_license_plate') or {}
-        for _,entry in pairs(items) do if entry.metadata then TriggerServerEvent('st_dmv:server:installPlate',netId,entry.metadata); return end end
+        for _,entry in pairs(items) do if entry.metadata then metadata=entry.metadata; break end end
     else
         local pd=ClientFramework.QBCore and ClientFramework.QBCore.Functions.GetPlayerData() or {}
-        for _,entry in pairs(pd.items or {}) do if entry and entry.name=='dmv_license_plate' then TriggerServerEvent('st_dmv:server:installPlate',netId,entry.info or entry.metadata or {}); return end end
+        for _,entry in pairs(pd.items or {}) do if entry and entry.name=='dmv_license_plate' then metadata=entry.info or entry.metadata or {}; break end end
     end
-    ClientFramework.Notify('You do not have a DMV license plate.','error')
+    if not metadata then return ClientFramework.Notify('You do not have a DMV license plate.','error') end
+    if not playPlateInstallAnimation(vehicle) then return ClientFramework.Notify('Plate installation cancelled.','error') end
+    TriggerServerEvent('st_dmv:server:installPlate',netId,metadata)
 end)
 
 local function rebuildBlips()
