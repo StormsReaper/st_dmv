@@ -27,6 +27,7 @@ server_scripts {
     'server/qbox_dealership.lua',
     'server/main.lua',
     'server/custom_plates.lua',
+    'server/custom_plates_rework.lua',
     'server/mdt_api.lua'
 }
 
