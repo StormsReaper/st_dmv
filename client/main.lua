@@ -21,8 +21,16 @@ RegisterNUICallback('refresh',function(_,cb) TriggerServerEvent('st_dmv:server:r
 RegisterNUICallback('adminRefresh',function(_,cb) TriggerServerEvent('st_dmv:server:getAdminPanel'); cb({ok=true}) end)
 RegisterNUICallback('adminSetting',function(data,cb) TriggerServerEvent('st_dmv:server:adminSetting',data.key,data.value); cb({ok=true}) end)
 RegisterNUICallback('reviewCustomPlate',function(data,cb) TriggerServerEvent('st_dmv:server:reviewCustomPlate',data.id,data.approve==true,data.reason or ''); cb({ok=true}) end)
+RegisterNUICallback('setBlipLocation',function(_,cb)
+    local c=GetEntityCoords(PlayerPedId())
+    SendNUIMessage({action='blipLocation',coords={x=c.x,y=c.y,z=c.z}})
+    cb({ok=true,x=c.x,y=c.y,z=c.z})
+end)
 RegisterNUICallback('createLocation',function(data,cb)
-    local c=GetEntityCoords(PlayerPedId()); TriggerServerEvent('st_dmv:server:createLocation',data.label,{x=c.x,y=c.y,z=c.z}); cb({ok=true})
+    local c
+    if data.x and data.y and data.z then c=vector3(tonumber(data.x),tonumber(data.y),tonumber(data.z)) else c=GetEntityCoords(PlayerPedId()) end
+    TriggerServerEvent('st_dmv:server:createLocation',data.label,{x=c.x,y=c.y,z=c.z},data.menu_x and {x=tonumber(data.menu_x),y=tonumber(data.menu_y),z=tonumber(data.menu_z)} or nil)
+    cb({ok=true})
 end)
 RegisterNUICallback('updateLocation',function(data,cb) TriggerServerEvent('st_dmv:server:updateLocation',data.id,data); cb({ok=true}) end)
 RegisterNUICallback('setMenuLocation',function(data,cb)
